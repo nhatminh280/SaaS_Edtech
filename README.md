@@ -1,6 +1,6 @@
 # QA Quy chế HCMUS
 
-Phase 1 scaffold for a university-regulation QA system using FastAPI, LangGraph, RAG over ChromaDB, Z3 rule checks, and a Vite React chat UI.
+Phase 2 scaffold for a university-regulation QA system using FastAPI, LangGraph, RAG over ChromaDB, Z3 rule checks, and a Vite React chat UI.
 
 ## Structure
 
@@ -10,8 +10,8 @@ backend/
     api/          FastAPI routes
     core/         settings and Pydantic schemas
     graph/        LangGraph workflow and nodes
-    rag/          PDF ingestion and Chroma retrieval
-    z3_engine/    initial Z3 rules
+    rag/          smart PDF ingestion and Chroma retrieval
+    z3_engine/    Z3 academic-rule checks
   data/           place regulation PDFs here
   chroma_db/      ChromaDB persistence
   scripts/        manual ingestion scripts
@@ -35,6 +35,12 @@ Health check:
 curl http://localhost:8000/api/v1/health
 ```
 
+Collection stats:
+
+```bash
+curl http://localhost:8000/api/v1/collection/stats
+```
+
 Ask endpoint:
 
 ```bash
@@ -54,7 +60,21 @@ cd backend
 python scripts/ingest_pdf.py --pdf data/quy_che_hcmus_2024.pdf
 ```
 
+Reset the collection before ingesting:
+
+```bash
+python scripts/ingest_pdf.py --pdf data/quy_che_hcmus_2024.pdf --reset
+```
+
+Or ingest through the API:
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/collection/ingest?pdf_path=data/quy_che_hcmus_2024.pdf&reset=true"
+```
+
 Set `OPENAI_API_KEY` or `GOOGLE_API_KEY` in `backend/.env` before ingesting, depending on `EMBEDDING_PROVIDER`.
+
+OCR is used only during PDF ingestion for pages where normal PDF text extraction is too short. Default `OCR_PROVIDER=auto` tries local PaddleOCR first, then uses OpenAI vision OCR as a fallback when Paddle returns weak text and `OPENAI_API_KEY` is configured. Use `OCR_PROVIDER=paddle` to avoid API cost, `OCR_PROVIDER=openai` for higher-quality OCR, or `OCR_PROVIDER=off` to disable OCR.
 
 ## Frontend
 
@@ -73,12 +93,52 @@ cp backend/.env.example backend/.env
 docker compose up --build
 ```
 
-## Phase 1 Checklist
+## Phase 2 Test Requests
 
-- FastAPI skeleton with `GET /health` and `POST /ask`
-- Pydantic schemas for request, response, citation, Z3 result, and graph state
-- LangGraph workflow with retrieve, reason, and generate nodes
-- ChromaDB PDF ingestion and retriever modules
-- Three initial Z3 rule stubs
-- Vite React chat UI calling the backend API
-- `.env.example` with configurable keys and model settings
+Factual:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Sinh viên bị cảnh cáo học vụ khi nào?"}'
+```
+
+Logical with Z3:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/ask \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "Tôi có đủ điều kiện tốt nghiệp không?",
+    "user_facts": {
+      "tin_chi_tich_luy": 125,
+      "diem_tb": 2.8,
+      "no_mon": false,
+      "hoan_thanh_tttn": true
+    }
+  }'
+```
+
+Scholarship:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/ask \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "Tôi có được học bổng khuyến khích không?",
+    "user_facts": {
+      "diem_tb": 3.5,
+      "no_mon": false,
+      "diem_ren_luyen": 85
+    }
+  }'
+```
+
+## Phase 2 Checklist
+
+- Smart chunking detects chapters, articles, sections, and falls back to sliding windows
+- Retriever returns normalized cosine scores and filters weak matches
+- LangGraph routes retrieve -> optional Z3 -> generate end to end
+- Z3 covers graduation, academic warning, suspension, scholarship, course registration, and study deferral
+- `/health` and `/collection/stats` report ChromaDB state
+- `/collection/ingest` can ingest a PDF without restarting the backend

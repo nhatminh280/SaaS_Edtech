@@ -14,8 +14,13 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-3-5-haiku-20241022"
 
     # Embedding
-    embedding_provider: Literal["openai", "google"] = "openai"
+    embedding_provider: Literal["openai", "google", "hash"] = "openai"
     embedding_model: str = "text-embedding-3-small"
+
+    # OCR for image-only PDF pages during ingestion
+    ocr_provider: Literal["auto", "paddle", "openai", "off"] = "auto"
+    ocr_min_chars: int = 30
+    ocr_openai_model: str = "gpt-4o-mini"
 
     # ChromaDB
     chroma_persist_dir: str = "./chroma_db"

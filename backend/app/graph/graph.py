@@ -10,15 +10,24 @@ from app.graph.state import GraphState
 logger = logging.getLogger(__name__)
 
 
-def should_run_z3(state: GraphState) -> str:
-    """Run Z3 only for logical questions with provided user facts."""
-    if state.get("question_type") == "logical" and state.get("user_facts"):
+def route_after_retrieve(state: GraphState) -> str:
+    """
+    After retrieve, decide if Z3 should run.
+    Z3 runs only for logical questions with user facts and retrieved evidence.
+    """
+    is_logical = state.get("question_type") == "logical"
+    has_facts = bool(state.get("user_facts"))
+    has_chunks = bool(state.get("retrieved_chunks"))
+
+    if is_logical and has_facts and has_chunks:
+        logger.info("[router] -> reason (Z3)")
         return "reason"
+
+    logger.info("[router] -> generate (skip Z3)")
     return "generate"
 
 
 def build_graph():
-    """Build and compile the LangGraph workflow."""
     workflow = StateGraph(GraphState)
 
     workflow.add_node("retrieve", retrieve_node)
@@ -28,11 +37,8 @@ def build_graph():
     workflow.set_entry_point("retrieve")
     workflow.add_conditional_edges(
         "retrieve",
-        should_run_z3,
-        {
-            "reason": "reason",
-            "generate": "generate",
-        },
+        route_after_retrieve,
+        {"reason": "reason", "generate": "generate"},
     )
     workflow.add_edge("reason", "generate")
     workflow.add_edge("generate", END)

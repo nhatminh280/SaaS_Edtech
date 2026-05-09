@@ -1,11 +1,13 @@
 import logging
 import time
+from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.core.schema import AskRequest, AskResponse, Citation, QuestionType, Z3Result
 from app.graph.graph import graph
 from app.graph.state import initial_state
+from app.rag.retriever import get_collection_stats
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -13,7 +15,11 @@ logger = logging.getLogger(__name__)
 
 @router.get("/health")
 def health_check():
-    return {"status": "ok", "service": "QA Quy chế HCMUS"}
+    return {
+        "status": "ok",
+        "service": "QA Quy chế HCMUS",
+        "chroma": get_collection_stats(),
+    }
 
 
 @router.post("/ask", response_model=AskResponse)
@@ -21,30 +27,44 @@ async def ask_question(request: AskRequest):
     start_time = time.time()
 
     try:
-        state = initial_state(
-            question=request.question,
-            user_facts=request.user_facts,
-        )
-
+        state = initial_state(question=request.question, user_facts=request.user_facts)
         result = graph.invoke(state)
+
         citations = [Citation(**citation) for citation in result.get("citations", [])]
-
-        z3_result = None
-        if result.get("z3_result"):
-            z3_result = Z3Result(**result["z3_result"])
-
+        z3_result = Z3Result(**result["z3_result"]) if result.get("z3_result") else None
         question_type = QuestionType(result.get("question_type", "factual"))
-        processing_time = int((time.time() - start_time) * 1000)
 
         return AskResponse(
-            answer=result.get("answer", "Không thể trả lời câu hỏi này."),
+            answer=result.get("answer", "Không thể trả lời."),
             question_type=question_type,
             citations=citations,
             confidence=result.get("confidence", 0.5),
             z3_result=z3_result,
-            processing_time_ms=processing_time,
+            processing_time_ms=int((time.time() - start_time) * 1000),
         )
 
     except Exception as exc:
-        logger.error("Error processing question: %s", exc, exc_info=True)
+        logger.error("/ask error: %s", exc, exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/collection/stats")
+def collection_stats():
+    """Debug endpoint for ChromaDB collection size and name."""
+    return get_collection_stats()
+
+
+@router.post("/collection/ingest")
+async def ingest_collection(
+    pdf_path: str = Query(..., description="Path đến file PDF trong server"),
+    reset: bool = Query(False, description="Xóa collection cũ trước khi ingest"),
+):
+    """Admin endpoint to ingest a PDF without restarting the backend."""
+    from app.rag.ingest import ingest_pdf
+
+    path = Path(pdf_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"File không tồn tại: {pdf_path}")
+
+    total = ingest_pdf(str(path), reset=reset)
+    return {"ingested_chunks": total, "pdf": str(path), "reset": reset}

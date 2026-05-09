@@ -17,6 +17,7 @@ from app.rag.ingest import ingest_pdf  # noqa: E402
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pdf", required=True, help="Path đến file PDF quy chế")
+    parser.add_argument("--reset", action="store_true", help="Xóa collection cũ trước khi ingest")
     args = parser.parse_args()
 
     pdf_path = args.pdf
@@ -25,7 +26,7 @@ def main():
         sys.exit(1)
 
     print(f"Ingesting: {pdf_path}")
-    total = ingest_pdf(pdf_path)
+    total = ingest_pdf(pdf_path, reset=args.reset)
     print(f"Đã ingest {total} chunks vào ChromaDB")
 
 
