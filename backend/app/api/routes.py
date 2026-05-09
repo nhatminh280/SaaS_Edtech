@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.schema import AskRequest, AskResponse, Citation, QuestionType, Z3Result
+from app.core.tracing import create_opik_tracer, graph_config_for_tracer, log_answer_feedback
 from app.graph.graph import graph
 from app.graph.state import initial_state
 from app.rag.retriever import get_collection_stats
@@ -28,13 +29,15 @@ async def ask_question(request: AskRequest):
 
     try:
         state = initial_state(question=request.question, user_facts=request.user_facts)
-        result = graph.invoke(state)
+        tracer = create_opik_tracer(thread_id=request.question[:80])
+        graph_config = graph_config_for_tracer(tracer)
+        result = graph.invoke(state, config=graph_config) if graph_config else graph.invoke(state)
 
         citations = [Citation(**citation) for citation in result.get("citations", [])]
         z3_result = Z3Result(**result["z3_result"]) if result.get("z3_result") else None
         question_type = QuestionType(result.get("question_type", "factual"))
 
-        return AskResponse(
+        response = AskResponse(
             answer=result.get("answer", "Không thể trả lời."),
             question_type=question_type,
             citations=citations,
@@ -42,6 +45,8 @@ async def ask_question(request: AskRequest):
             z3_result=z3_result,
             processing_time_ms=int((time.time() - start_time) * 1000),
         )
+        log_answer_feedback(tracer, response.model_dump())
+        return response
 
     except Exception as exc:
         logger.error("/ask error: %s", exc, exc_info=True)

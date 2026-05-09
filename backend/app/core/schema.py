@@ -15,6 +15,8 @@ class Citation(BaseModel):
     noi_dung: str = Field(..., description="Nội dung điều khoản trích dẫn")
     nguon: str = Field(..., description="Tên văn bản nguồn")
     chunk_id: Optional[str] = None
+    page: Optional[int] = None
+    pdf_url: Optional[str] = None
 
 
 class Z3Result(BaseModel):

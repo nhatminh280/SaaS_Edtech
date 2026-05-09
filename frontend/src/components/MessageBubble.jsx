@@ -2,20 +2,18 @@ import { CitationTag } from "./CitationTag";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 
 export function MessageBubble({ message }) {
-  const isUser = message.role === "user";
-
-  if (isUser) {
+  if (message.role === "user") {
     return (
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", margin: "4px 0" }}>
         <div
           style={{
-            background: "#2563eb",
-            color: "#fff",
-            borderRadius: "14px 14px 4px 14px",
-            padding: "10px 14px",
-            maxWidth: "75%",
+            background: "#534AB7",
+            color: "#FFF",
+            borderRadius: "18px 18px 4px 18px",
+            padding: "10px 16px",
+            maxWidth: "78%",
             fontSize: 14,
-            lineHeight: 1.5,
+            lineHeight: 1.55,
             overflowWrap: "anywhere",
           }}
         >
@@ -26,24 +24,35 @@ export function MessageBubble({ message }) {
   }
 
   return (
-    <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 12 }}>
+    <div style={{ display: "flex", justifyContent: "flex-start", margin: "4px 0" }}>
       <div
         style={{
-          background: "#f8fafc",
-          border: "1px solid #e2e8f0",
-          borderRadius: "14px 14px 14px 4px",
-          padding: "12px 14px",
+          background: "#FFF",
+          border: "1px solid #EBEBEB",
+          borderRadius: "18px 18px 18px 4px",
+          padding: "12px 16px",
           maxWidth: "82%",
           fontSize: 14,
-          lineHeight: 1.6,
-          color: "#0f172a",
+          lineHeight: 1.65,
+          color: "#1A1A1A",
           overflowWrap: "anywhere",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
         }}
       >
-        <div style={{ whiteSpace: "pre-wrap" }}>{message.content}</div>
+        <div style={{ whiteSpace: "pre-wrap" }}>{message.content || "Không có câu trả lời."}</div>
 
         {message.citations?.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+          <div
+            style={{
+              marginTop: 12,
+              paddingTop: 10,
+              borderTop: "1px solid #F0F0F0",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 6,
+            }}
+          >
+            <span style={{ fontSize: 11, color: "#999", alignSelf: "center" }}>Trích dẫn:</span>
             {message.citations.map((citation, index) => (
               <CitationTag key={`${citation.chunk_id || citation.dieu_khoan}-${index}`} citation={citation} />
             ))}
@@ -51,11 +60,17 @@ export function MessageBubble({ message }) {
         )}
 
         {message.confidence !== undefined && (
-          <ConfidenceBadge confidence={message.confidence} z3Result={message.z3Result} />
+          <ConfidenceBadge
+            confidence={message.confidence}
+            z3Result={message.z3Result}
+            questionType={message.questionType}
+          />
         )}
 
         {message.processingTimeMs !== undefined && (
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 8 }}>{message.processingTimeMs}ms</div>
+          <div style={{ fontSize: 10, color: "#AAA", marginTop: 8, textAlign: "right" }}>
+            {message.processingTimeMs}ms
+          </div>
         )}
       </div>
     </div>

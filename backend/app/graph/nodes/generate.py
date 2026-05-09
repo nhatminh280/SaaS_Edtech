@@ -1,6 +1,7 @@
 import logging
 
 from app.core.config import settings
+from app.core.tracing import track_openai_client
 from app.graph.state import GraphState
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,7 @@ def _call_llm(system: str, user: str, chunks: list[dict], z3_result: dict | None
             from openai import OpenAI
 
             client = OpenAI(api_key=settings.openai_api_key)
+            client = track_openai_client(client)
             response = client.chat.completions.create(
                 model=settings.openai_model,
                 messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],

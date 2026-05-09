@@ -25,11 +25,21 @@ class Settings(BaseSettings):
     # ChromaDB
     chroma_persist_dir: str = "./chroma_db"
     chroma_collection: str = "quy_che_hcmus"
+    pdf_source_urls: str = (
+        "QC_DT=https://hcmus.edu.vn/wp-content/uploads/2025/04/QD-1175_Quy-che-dao-tao-trinh-do-DH-2021.pdf"
+    )
 
     # App
     app_port: int = 8000
     cors_origins: str = "http://localhost:5173"
     log_level: str = "INFO"
+
+    # Opik tracing and online evaluation
+    opik_enabled: bool = False
+    opik_project_name: str = "saas-edtech-rag"
+    opik_api_key: str = ""
+    opik_base_url: str = ""
+    opik_workspace: str = ""
 
     class Config:
         env_file = ".env"

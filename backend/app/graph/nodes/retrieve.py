@@ -1,5 +1,6 @@
 import logging
 
+from app.core.config import settings
 from app.graph.state import GraphState
 from app.rag.retriever import search_chunks
 
@@ -34,6 +35,28 @@ PROCEDURAL_KEYWORDS = [
 ]
 
 
+def _parse_source_urls() -> dict[str, str]:
+    pairs = {}
+    for item in settings.pdf_source_urls.split(","):
+        if "=" not in item:
+            continue
+        key, value = item.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if key and value:
+            pairs[key] = value
+    return pairs
+
+
+def _build_pdf_url(source: str, page: int | None) -> str | None:
+    base_url = _parse_source_urls().get(source)
+    if not base_url:
+        return None
+    if not page:
+        return base_url
+    return f"{base_url}#page={page}"
+
+
 def classify_question(question: str) -> str:
     question_lower = question.lower()
     if any(keyword in question_lower for keyword in LOGICAL_KEYWORDS):
@@ -56,12 +79,15 @@ def retrieve_node(state: GraphState) -> GraphState:
         metadata = chunk.get("metadata") or {}
         dieu_khoan = metadata.get("dieu_khoan", "Không xác định")
         page = metadata.get("trang")
+        source = metadata.get("nguon", "Quy chế HCMUS")
         citations.append(
             {
                 "dieu_khoan": dieu_khoan,
                 "noi_dung": chunk["document"][:400],
-                "nguon": metadata.get("nguon", "Quy chế HCMUS"),
+                "nguon": source,
                 "chunk_id": chunk["id"],
+                "page": page,
+                "pdf_url": _build_pdf_url(source, page),
             }
         )
         if page:
